@@ -66,31 +66,66 @@ grant execute on function public.get_users_with_pending_reviews(timestamptz) to 
 export class GetUsersWithPendingReviewsUseCase {
   constructor(private readonly supabase: SupabaseClient) {}
 
+  private todayIsoDate(timeZone: string): string {
+    // en-CA yields YYYY-MM-DD which PostgREST accepts for DATE comparisons.
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+  }
+
   /**
    * Returns unique users with the number of due rows in `student_progress` whose `next_review_date`
    * (date) is NULL or <= the UTC date of “now”.
    */
   async execute(): Promise<UserPendingReviewRow[]> {
-    const pNow = new Date().toISOString();
+    // Prefer timezone-aware "today" to match what learners see in the UI.
+    // Configure with REMINDER_TIMEZONE (e.g., "Asia/Manila"). Defaults to UTC.
+    const tz = process.env.REMINDER_TIMEZONE?.trim() || "UTC";
+    const today = this.todayIsoDate(tz);
 
-    const { data, error } = await this.supabase.rpc("get_users_with_pending_reviews", {
-      p_now: pNow,
-    });
+    // Query directly to avoid relying on a pre-installed RPC function and to keep the definition
+    // of "due today" consistent with the configured timezone.
+    const { data, error } = await this.supabase
+      .from("student_progress")
+      .select(
+        `
+        user_id,
+        next_review_date,
+        profiles!inner (
+          email,
+          full_name
+        )
+      `,
+      )
+      .or(`next_review_date.is.null,next_review_date.lte.${today}`);
 
-    if (error) {
-      throw error;
-    }
+    if (error) throw error;
 
     const rows = (data ?? []) as Array<{
-      email: string;
-      name: string;
-      pending_count: number | string;
+      user_id: string;
+      next_review_date: string | null;
+      profiles: { email: string | null; full_name: string | null } | Array<unknown>;
     }>;
 
-    return rows.map((r) => ({
-      email: r.email,
-      name: r.name?.trim() ? r.name : "Student",
-      pendingCount: typeof r.pending_count === "string" ? Number(r.pending_count) : r.pending_count,
-    }));
+    const byEmail = new Map<string, UserPendingReviewRow>();
+
+    for (const r of rows) {
+      const profile = Array.isArray(r.profiles) ? null : r.profiles;
+      const email = profile?.email?.trim() ?? "";
+      if (!email) continue;
+
+      const name = profile?.full_name?.trim() ? profile.full_name.trim() : "Student";
+      const existing = byEmail.get(email);
+      if (existing) {
+        existing.pendingCount += 1;
+      } else {
+        byEmail.set(email, { email, name, pendingCount: 1 });
+      }
+    }
+
+    return Array.from(byEmail.values());
   }
 }

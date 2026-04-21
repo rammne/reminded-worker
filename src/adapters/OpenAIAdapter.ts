@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import type { ILLMService, LLMJobInput, QuestionDraft } from "../ports/ILLMService";
 import { normalizeQuestions } from "../domain/validation";
+import { mapPromptForChunk, reducePromptForQuestions } from "../domain/prompts";
 
 type TokenRecord = { timestamp: number; tokens: number };
 
@@ -157,13 +158,8 @@ export class OpenAIAdapter implements ILLMService {
     }
 
     // Minimal internal orchestration (kept for compatibility).
-    const notes = await this.mapChunkToNotes(input.text);
-    const prompt = [
-      "Using the notes below, generate 20 multiple-choice questions.",
-      "Return ONLY JSON as an array.",
-      "Notes:",
-      ...notes.notes.map((n) => `- ${n}`),
-    ].join("\n");
+    const notes = await this.mapChunkToNotes(mapPromptForChunk({ index: 0, text: input.text }));
+    const prompt = reducePromptForQuestions(notes.notes);
     return this.reduceNotesToQuestions(prompt);
   }
 }

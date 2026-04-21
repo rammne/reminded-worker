@@ -19,13 +19,22 @@ export class DailyReminderDispatcher {
    * The callback never blocks the event loop: async work runs inside a detached promise chain.
    */
   start(): void {
+    const expr = process.env.DAILY_REMINDER_CRON?.trim() || "0 8 * * *";
+    const tz = process.env.REMINDER_TIMEZONE?.trim();
+
     // Minute 0, hour 8, every day — standard five-field cron used by node-cron.
-    cron.schedule("0 8 * * *", () => {
+    cron.schedule(
+      expr,
+      () => {
       void this.runDailyReminderJob();
-    });
+      },
+      tz ? { timezone: tz } : undefined,
+    );
 
     // eslint-disable-next-line no-console
-    console.log("[DailyReminderDispatcher] scheduled: daily at 08:00 (cron 0 8 * * *)");
+    console.log(
+      `[DailyReminderDispatcher] scheduled: ${expr}${tz ? ` (timezone ${tz})` : ""}`,
+    );
   }
 
   /**
@@ -37,6 +46,10 @@ export class DailyReminderDispatcher {
 
     try {
       const dueUsers = await this.getUsersWithPendingReviews.execute();
+      // eslint-disable-next-line no-console
+      console.log(
+        `[DailyReminderDispatcher] due users found: ${dueUsers.length} (REMINDER_TIMEZONE=${process.env.REMINDER_TIMEZONE || "UTC"})`,
+      );
 
       const payloads = dueUsers.map((u) => ({
         to: u.email,

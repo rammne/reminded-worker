@@ -16,9 +16,9 @@ const RESEND_BATCH_MAX = 100;
 
 /**
  * Sender identity (placeholder domain until production DNS is wired).
- * RFC 5322 friendly-name form so inbox clients show “ReMindED” correctly.
+ * RFC 5322 friendly-name form so inbox clients show “RemindED” correctly.
  */
-const REMINDER_FROM = "ReMindED <onboarding@resend.dev>";
+const REMINDER_FROM = "RemindED <notifications@reminded.site>";
 
 const REMINDER_SUBJECT = "You have cards to review today.";
 
@@ -110,8 +110,8 @@ export class ResendAdapter {
         <td align="center">
           <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:520px;font-family:system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#ffffff;">
             <tr>
-              <td style="padding:0 0 24px 0;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#a3a3a3;">
-                ReMindED
+              <td style="padding:0 0 24px 0;font-size:13px;letter-spacing:0.08em;color:#a3a3a3;">
+                RemindED
               </td>
             </tr>
             <tr>
@@ -135,6 +135,11 @@ export class ResendAdapter {
               <td style="padding:0;font-size:12px;line-height:1.5;color:#737373;">
                 If the button does not work, copy and paste this link into your browser:<br />
                 <span style="color:#a3a3a3;word-break:break-all;">${escapeHtml(ctaHref)}</span>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:24px 0 0 0;font-size:12px;line-height:1.5;color:#737373;border-top:1px solid #262626;">
+                You are receiving this because you are registered for the RemindED spaced-repetition study.
               </td>
             </tr>
           </table>
